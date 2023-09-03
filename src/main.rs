@@ -1,12 +1,13 @@
 use std::{
+    fmt::Display,
     io::{stdin, stdout, Read, Write},
     time::Duration,
 };
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use colored::{ColoredString, Colorize};
 use miette::{miette, Context, IntoDiagnostic, Result};
-use zookeeper::ZooKeeper;
+use zookeeper::{Acl, ZooKeeper};
 
 pub fn get_styles() -> clap::builder::Styles {
     clap::builder::Styles::styled()
@@ -76,6 +77,33 @@ enum Command {
         /// Path of the file to write.
         path: String,
     },
+    /// Create a new file.
+    /// Write the content of stdin to the specified path.
+    /// By default the file is created in persistent. If you override this value by ephemeral, the node will be deleted before the cli exit.
+    /// By default the acls are set as: anyone can do anything.
+    Create {
+        /// Path of the file to write.
+        path: String,
+        #[clap(long, default_values_t = vec![CreateMode::Persistent])]
+        mode: Vec<CreateMode>,
+    },
+}
+
+#[derive(Debug, Parser, Copy, Clone, PartialEq, Eq, ValueEnum)]
+pub enum CreateMode {
+    Persistent,
+    Ephemeral,
+    Sequential,
+}
+
+impl Display for CreateMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CreateMode::Persistent => write!(f, "persistent"),
+            CreateMode::Ephemeral => write!(f, "ephemeral"),
+            CreateMode::Sequential => write!(f, "sequential"),
+        }
+    }
 }
 
 fn main() -> Result<()> {
@@ -154,6 +182,33 @@ fn main() -> Result<()> {
             } else {
                 return Err(miette!("Did you forgot to pipe something in the command?"));
             }
+        }
+        Command::Create { mut path, mode } => {
+            sanitize_path(&mut path);
+            let mut buffer = Vec::new();
+            if atty::isnt(atty::Stream::Stdin) {
+                stdin().read_to_end(&mut buffer).into_diagnostic()?;
+            }
+            let mode = match (
+                mode.contains(&CreateMode::Persistent),
+                mode.contains(&CreateMode::Ephemeral),
+                mode.contains(&CreateMode::Sequential),
+            ) {
+                (true, true, _) => {
+                    return Err(miette!(
+                        "Can't use persistent and ephemeral at the same time."
+                    ))
+                }
+                (true | false, false, true) => zookeeper::CreateMode::PersistentSequential,
+                (true | false, false, false) => zookeeper::CreateMode::Persistent,
+                (false, true, true) => zookeeper::CreateMode::EphemeralSequential,
+                (false, true, false) => zookeeper::CreateMode::Ephemeral,
+            };
+            let ret = zk
+                .create(&path, buffer, Acl::open_unsafe().clone(), mode)
+                .into_diagnostic()?;
+
+            println!("{ret}");
         }
     }
     Ok(())
