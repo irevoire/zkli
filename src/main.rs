@@ -31,8 +31,13 @@ pub fn get_styles() -> clap::builder::Styles {
 #[clap(about = "Cli around zookeeper")]
 #[command(styles = get_styles())]
 struct Options {
+    /// The addr of the zookeeper server.
     #[clap(long, short, default_value_t = String::from("localhost:2181/"))]
     pub addr: String,
+
+    /// The verbosity, the more `v` you use and the more verbose it gets.
+    #[clap(short, action = clap::ArgAction::Count)]
+    verbose: u8,
 
     #[clap(subcommand)]
     pub command: Command,
@@ -119,7 +124,8 @@ impl Display for CreateMode {
 fn main() -> Result<()> {
     let opt = Options::parse();
     let mut log_builder = env_logger::Builder::new();
-    log_builder.parse_filters("warn");
+    let log_level = ["fatal", "error", "warn", "info", "debug", "trace"];
+    log_builder.parse_filters(log_level[opt.verbose.clamp(0, log_level.len() as u8 - 1) as usize]);
     log_builder.init();
 
     log::info!("Connecting to {}", opt.addr);
