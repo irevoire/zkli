@@ -1,11 +1,11 @@
 use std::{
-    io::{stdout, Write},
+    io::{stdin, stdout, Read, Write},
     time::Duration,
 };
 
 use clap::Parser;
 use colored::{ColoredString, Colorize};
-use miette::{Context, IntoDiagnostic, Result};
+use miette::{miette, Context, IntoDiagnostic, Result};
 use zookeeper::ZooKeeper;
 
 pub fn get_styles() -> clap::builder::Styles {
@@ -68,6 +68,13 @@ enum Command {
         /// Call itself recursively until every file and directory has been deleted.
         #[clap(long, short, default_value_t = false)]
         recursive: bool,
+    },
+    /// Write the content of stdin to the specified path.
+    /// The path must already exists. See the create command if you need to create a new node.
+    #[clap(aliases = &["set"])]
+    Write {
+        /// Path of the file to write.
+        path: String,
     },
 }
 
@@ -136,6 +143,16 @@ fn main() -> Result<()> {
                 if let Err(e) = ret {
                     log::error!("`{}`: {}", path, e);
                 }
+            }
+        }
+        Command::Write { mut path } => {
+            sanitize_path(&mut path);
+            if atty::isnt(atty::Stream::Stdin) {
+                let mut buffer = Vec::new();
+                stdin().read_to_end(&mut buffer).into_diagnostic()?;
+                zk.set_data(&path, buffer, None).into_diagnostic()?;
+            } else {
+                return Err(miette!("Did you forgot to pipe something in the command?"));
             }
         }
     }
