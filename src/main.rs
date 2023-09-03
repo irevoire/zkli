@@ -85,12 +85,15 @@ enum Command {
         force: bool,
     },
     /// Create a new file.
-    /// Write the content of stdin to the specified path.
+    /// Write the content of stdin or argv to the specified path.
     /// By default the file is created in persistent. If you override this value by ephemeral, the node will be deleted before the cli exit.
     /// By default the acls are set as: anyone can do anything.
     Create {
         /// Path of the file to write.
         path: String,
+        /// Content to write in the file.
+        content: Option<String>,
+        /// Mode to use when creating the file.
         #[clap(long, default_values_t = vec![CreateMode::Persistent])]
         mode: Vec<CreateMode>,
     },
@@ -210,10 +213,16 @@ fn main() -> Result<()> {
                 }
             }
         }
-        Command::Create { mut path, mode } => {
+        Command::Create {
+            mut path,
+            content,
+            mode,
+        } => {
             sanitize_path(&mut path);
-            let mut buffer = Vec::new();
-            if atty::isnt(atty::Stream::Stdin) {
+            let mut buffer = content
+                .as_ref()
+                .map_or(Vec::new(), |content| content.as_bytes().to_vec());
+            if content.is_none() && atty::isnt(atty::Stream::Stdin) {
                 stdin().read_to_end(&mut buffer).into_diagnostic()?;
             }
             let mode = match (
