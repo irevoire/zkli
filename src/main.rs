@@ -7,8 +7,27 @@ use clap::Parser;
 use miette::{IntoDiagnostic, Result};
 use zookeeper::ZooKeeper;
 
+pub fn get_styles() -> clap::builder::Styles {
+    clap::builder::Styles::styled()
+        .usage(
+            anstyle::Style::new()
+                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow)))
+                .bold(),
+        )
+        .header(
+            anstyle::Style::new()
+                .bold()
+                .underline()
+                .fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Yellow))),
+        )
+        .literal(
+            anstyle::Style::new().fg_color(Some(anstyle::Color::Ansi(anstyle::AnsiColor::Green))),
+        )
+}
+
 #[derive(Debug, Parser)]
 #[clap(about = "Cli around zookeeper")]
+#[command(styles = get_styles())]
 struct Options {
     #[clap(long, short, default_value_t = String::from("localhost:2181/"))]
     pub addr: String,

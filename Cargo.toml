@@ -12,6 +12,7 @@ authors = ["Tamo <tamo@meilisearch.com"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anstyle = "1.0.2"
 clap = { version = "4.4.2", features = ["derive"] }
 env_logger = "0.10.0"
 log = "0.4.20"
