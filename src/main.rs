@@ -46,7 +46,7 @@ enum Command {
     Cat { file: String },
     /// Remove directory entries
     Rm {
-        path: String,
+        paths: Vec<String>,
         #[clap(long, short, default_value_t = false)]
         recursive: bool,
     },
@@ -94,15 +94,20 @@ fn main() -> Result<()> {
             let (data, _) = zk.get_data(&file, false).into_diagnostic()?;
             stdout().write_all(&data).into_diagnostic()?;
         }
-        Command::Rm {
-            path: mut file,
-            recursive,
-        } => {
-            sanitize_path(&mut file);
-            if recursive {
-                recursive_delete(&zk, &file)?;
-            } else {
-                zk.delete(&file, None).into_diagnostic()?;
+        Command::Rm { paths, recursive } => {
+            for mut path in paths {
+                let ret = || -> Result<()> {
+                    sanitize_path(&mut path);
+                    if recursive {
+                        recursive_delete(&zk, &path)?;
+                    } else {
+                        zk.delete(&path, None).into_diagnostic()?;
+                    }
+                    Ok(())
+                }();
+                if let Err(e) = ret {
+                    log::error!("`{}`: {}", path, e);
+                }
             }
         }
     }
