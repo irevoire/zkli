@@ -2,6 +2,12 @@
 name = "zkli"
 version = "0.1.0"
 edition = "2021"
+description = "Cli around zookeeper"
+readme = "README.md"
+license = "WTFPL"
+repository = "https://github.com/irevoire/zkli"
+keywords = ["zookeeper", "cli"]
+authors = ["Tamo <tamo@meilisearch.com"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
