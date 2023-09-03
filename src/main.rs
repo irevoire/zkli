@@ -32,11 +32,11 @@ pub fn get_styles() -> clap::builder::Styles {
 #[command(styles = get_styles())]
 struct Options {
     /// The addr of the zookeeper server.
-    #[clap(long, short, default_value_t = String::from("localhost:2181/"))]
+    #[clap(global = true, long, short, default_value_t = String::from("localhost:2181/"))]
     pub addr: String,
 
     /// The verbosity, the more `v` you use and the more verbose it gets.
-    #[clap(short, action = clap::ArgAction::Count)]
+    #[clap(global = true, short, action = clap::ArgAction::Count)]
     verbose: u8,
 
     #[clap(subcommand)]
