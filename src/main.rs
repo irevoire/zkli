@@ -47,8 +47,7 @@ enum Command {
 fn main() -> Result<()> {
     let opt = Options::parse();
     let mut log_builder = env_logger::Builder::new();
-    log_builder.parse_filters("info");
-
+    log_builder.parse_filters("warn");
     log_builder.init();
 
     log::info!("Connecting to {}", opt.addr);
