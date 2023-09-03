@@ -39,9 +39,15 @@ struct Options {
 #[derive(Debug, Parser)]
 enum Command {
     /// List directory contents.
-    Ls { path: Option<String> },
+    Ls {
+        /// List directory contents from the given path.
+        path: Option<String>,
+    },
     /// List contents of directories in a tree-like format.
-    Tree { path: Option<String> },
+    Tree {
+        /// Print the tree from the given path.
+        path: Option<String>,
+    },
     /// Print file.
     Cat {
         /// Path of the file to cat.
@@ -54,6 +60,7 @@ enum Command {
     Rm {
         /// Path of the files to remove.
         paths: Vec<String>,
+        /// Call itself recursively until every file and directory has been deleted.
         #[clap(long, short, default_value_t = false)]
         recursive: bool,
     },
