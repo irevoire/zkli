@@ -38,10 +38,20 @@ struct Options {
 
 #[derive(Debug, Parser)]
 enum Command {
-    Ls { path: Option<String> },
-    Tree { path: Option<String> },
-    Cat { file: String },
-    Rm { file: String },
+    Ls {
+        path: Option<String>,
+    },
+    Tree {
+        path: Option<String>,
+    },
+    Cat {
+        file: String,
+    },
+    Rm {
+        file: String,
+        #[clap(long, short, default_value_t = false)]
+        recursive: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -86,10 +96,16 @@ fn main() -> Result<()> {
             let (data, _) = zk.get_data(&file, false).into_diagnostic()?;
             stdout().write_all(&data).into_diagnostic()?;
         }
-        Command::Rm { mut file } => {
+        Command::Rm {
+            mut file,
+            recursive,
+        } => {
             sanitize_path(&mut file);
-            zk.delete(&file, None).into_diagnostic()?;
-            log::info!("Successfully deleted");
+            if recursive {
+                recursive_delete(&zk, &file)?;
+            } else {
+                zk.delete(&file, None).into_diagnostic()?;
+            }
         }
     }
     Ok(())
@@ -113,6 +129,25 @@ fn tree(zk: &ZooKeeper, mut path: &str, depth: usize) -> Result<()> {
             tree(zk, &format!("{path}/{child}"), depth + 1)?;
         }
     }
+    Ok(())
+}
+
+fn recursive_delete(zk: &ZooKeeper, path: &str) -> Result<()> {
+    let stat = zk.exists(&path, false).into_diagnostic()?.unwrap();
+
+    if stat.num_children == 0 {
+        zk.delete(&path, None).into_diagnostic()?;
+        return Ok(());
+    }
+
+    let children = zk.get_children(&path, false).into_diagnostic()?;
+    for child in children {
+        let path = if path == "/" { "" } else { path };
+        recursive_delete(zk, &format!("{}/{}", path, child))?;
+    }
+
+    zk.delete(&path, None).into_diagnostic()?;
+
     Ok(())
 }
 
