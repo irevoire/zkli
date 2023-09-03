@@ -4,6 +4,7 @@ use std::{
 };
 
 use clap::Parser;
+use colored::{ColoredString, Colorize};
 use miette::{Context, IntoDiagnostic, Result};
 use zookeeper::ZooKeeper;
 
@@ -90,17 +91,16 @@ fn main() -> Result<()> {
                     .exists(&format!("{}/{}", path, child), false)
                     .into_diagnostic()?
                     .unwrap();
-                if stat.num_children == 0 {
-                    print!("{child} ");
-                } else {
-                    print!("{child}/ ");
-                }
+                let child = format_node_from_stat(&child, &stat);
+                print!("{child} ");
             }
             println!();
         }
         Command::Tree { path } => {
             let mut path = path.unwrap_or(String::from("/"));
             sanitize_path(&mut path);
+            let stat = zk.exists(&path, false).into_diagnostic()?.unwrap();
+            println!("{}", format_node_from_stat(&path, &stat));
             tree(&zk, &path, 0)?;
         }
         Command::Cat { mut file, binary } => {
@@ -139,7 +139,6 @@ fn main() -> Result<()> {
 }
 
 fn tree(zk: &ZooKeeper, mut path: &str, depth: usize) -> Result<()> {
-    println!("{}{}", "  ".repeat(depth), path);
     let mut children = zk.get_children(&path, false).into_diagnostic()?;
     if path == "/" {
         path = ""
@@ -150,9 +149,12 @@ fn tree(zk: &ZooKeeper, mut path: &str, depth: usize) -> Result<()> {
             .exists(&format!("{}/{}", path, child), false)
             .into_diagnostic()?
             .unwrap();
-        if stat.num_children == 0 {
-            println!("{}{child}", "  ".repeat(depth + 1));
-        } else {
+        println!(
+            "{}{}",
+            "  ".repeat(depth + 1),
+            format_node_from_stat(&child, &stat)
+        );
+        if stat.num_children > 0 {
             tree(zk, &format!("{path}/{child}"), depth + 1)?;
         }
     }
@@ -189,4 +191,22 @@ fn sanitize_path(path: &mut String) {
         *path = path.trim_end_matches("/").to_string();
         log::warn!("Invalid path, removing the `/` at the end of your path: `{path}/` => `{path}`");
     }
+}
+
+fn format_node_from_stat(name: &str, stat: &zookeeper::Stat) -> ColoredString {
+    let name = if stat.num_children == 0 || name == "/" {
+        name.to_string()
+    } else {
+        format!("{name}/ ")
+    };
+    let mut name = name.bold();
+    name = name.blue();
+    if stat.data_length > 0 {
+        name = name.green();
+    }
+    if stat.is_ephemeral() {
+        name = name.italic();
+    }
+
+    name
 }
