@@ -70,12 +70,19 @@ enum Command {
         #[clap(long, short, default_value_t = false)]
         recursive: bool,
     },
-    /// Write the content of stdin to the specified path.
+    /// Write the content of stdin or argv to the specified path.
     /// The path must already exists. See the create command if you need to create a new node.
     #[clap(aliases = &["set"])]
     Write {
         /// Path of the file to write.
         path: String,
+        /// Content to write in the file.
+        content: Option<String>,
+        /// Force:
+        /// - If the file doesn't exsists create it as persistent.
+        /// - If you don't send any content, erase the content of the file for nothing.
+        #[clap(long, short, default_value_t = false)]
+        force: bool,
     },
     /// Create a new file.
     /// Write the content of stdin to the specified path.
@@ -173,14 +180,34 @@ fn main() -> Result<()> {
                 }
             }
         }
-        Command::Write { mut path } => {
+        Command::Write {
+            mut path,
+            content,
+            force,
+        } => {
             sanitize_path(&mut path);
-            if atty::isnt(atty::Stream::Stdin) {
-                let mut buffer = Vec::new();
+            let mut buffer = content
+                .as_ref()
+                .map_or(Vec::new(), |content| content.as_bytes().to_vec());
+            if content.is_none() && atty::isnt(atty::Stream::Stdin) {
                 stdin().read_to_end(&mut buffer).into_diagnostic()?;
-                zk.set_data(&path, buffer, None).into_diagnostic()?;
-            } else {
-                return Err(miette!("Did you forgot to pipe something in the command?"));
+            } else if content.is_none() && !force {
+                return Err(miette!("Did you forgot to pipe something in the command? If you wanted to reset the content of the file use `--force` or `-f`."));
+            }
+            match zk.set_data(&path, buffer.clone(), None) {
+                Ok(_) => (),
+                Err(zookeeper::ZkError::NoNode) if force => {
+                    zk.create(
+                        &path,
+                        buffer,
+                        Acl::open_unsafe().clone(),
+                        zookeeper::CreateMode::Persistent,
+                    )
+                    .into_diagnostic()?;
+                }
+                err => {
+                    err.into_diagnostic()?;
+                }
             }
         }
         Command::Create { mut path, mode } => {
