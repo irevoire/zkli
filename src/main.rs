@@ -40,16 +40,19 @@ struct Options {
 #[derive(Debug, Parser)]
 enum Command {
     /// List directory contents.
+    #[clap(aliases = &["list", "l", "ll"])]
     Ls {
         /// List directory contents from the given path.
         path: Option<String>,
     },
     /// List contents of directories in a tree-like format.
+    #[clap(aliases = &["t"])]
     Tree {
         /// Print the tree from the given path.
         path: Option<String>,
     },
     /// Print file.
+    #[clap(aliases = &["bat"])]
     Cat {
         /// Path of the file to cat.
         file: String,
@@ -58,6 +61,7 @@ enum Command {
         binary: bool,
     },
     /// Remove directory entries.
+    #[clap(aliases = &["rmdir"])]
     Rm {
         /// Path of the files to remove.
         paths: Vec<String>,
