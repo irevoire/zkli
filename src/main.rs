@@ -38,17 +38,15 @@ struct Options {
 
 #[derive(Debug, Parser)]
 enum Command {
-    Ls {
-        path: Option<String>,
-    },
-    Tree {
-        path: Option<String>,
-    },
-    Cat {
-        file: String,
-    },
+    /// List directory contents
+    Ls { path: Option<String> },
+    /// List contents of directories in a tree-like format.
+    Tree { path: Option<String> },
+    /// Print file.
+    Cat { file: String },
+    /// Remove directory entries
     Rm {
-        file: String,
+        path: String,
         #[clap(long, short, default_value_t = false)]
         recursive: bool,
     },
@@ -97,7 +95,7 @@ fn main() -> Result<()> {
             stdout().write_all(&data).into_diagnostic()?;
         }
         Command::Rm {
-            mut file,
+            path: mut file,
             recursive,
         } => {
             sanitize_path(&mut file);
