@@ -4,7 +4,7 @@ use std::{
 };
 
 use clap::Parser;
-use miette::{IntoDiagnostic, Result};
+use miette::{Context, IntoDiagnostic, Result};
 use zookeeper::ZooKeeper;
 
 pub fn get_styles() -> clap::builder::Styles {
@@ -38,14 +38,21 @@ struct Options {
 
 #[derive(Debug, Parser)]
 enum Command {
-    /// List directory contents
+    /// List directory contents.
     Ls { path: Option<String> },
     /// List contents of directories in a tree-like format.
     Tree { path: Option<String> },
     /// Print file.
-    Cat { file: String },
-    /// Remove directory entries
+    Cat {
+        /// Path of the file to cat.
+        file: String,
+        /// Use it to send binary data to stdout.
+        #[clap(long, short, default_value_t = false)]
+        binary: bool,
+    },
+    /// Remove directory entries.
     Rm {
+        /// Path of the files to remove.
         paths: Vec<String>,
         #[clap(long, short, default_value_t = false)]
         recursive: bool,
@@ -89,10 +96,20 @@ fn main() -> Result<()> {
             sanitize_path(&mut path);
             tree(&zk, &path, 0)?;
         }
-        Command::Cat { mut file } => {
+        Command::Cat { mut file, binary } => {
             sanitize_path(&mut file);
             let (data, _) = zk.get_data(&file, false).into_diagnostic()?;
-            stdout().write_all(&data).into_diagnostic()?;
+            if binary {
+                stdout().write_all(&data).into_diagnostic()?;
+            } else {
+                match String::from_utf8(data) {
+                    Ok(s) => println!("{s}"),
+                    err => {
+                        err.into_diagnostic()
+                            .wrap_err("To output the binary data use `-b` or `--binary`.")?;
+                    }
+                }
+            }
         }
         Command::Rm { paths, recursive } => {
             for mut path in paths {
