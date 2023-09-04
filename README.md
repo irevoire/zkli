@@ -20,3 +20,15 @@ Options:
   -v...              The verbosity, the more `v` you use and the more verbose it gets
   -h, --help         Print help
 ```
+
+## Installation
+
+### If you're a rust user
+
+```
+cargo install zkli
+```
+
+### If not
+
+Join the sect here: https://doc.rust-lang.org/book/
