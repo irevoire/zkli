@@ -280,20 +280,29 @@ fn tree(zk: &ZooKeeper, mut path: &str, depth: usize) -> Result<()> {
 }
 
 fn recursive_delete(zk: &ZooKeeper, path: &str) -> Result<()> {
-    let stat = zk.exists(&path, false).into_diagnostic()?.unwrap();
+    let stat = match zk.exists(path, false).into_diagnostic()? {
+        Some(stat) => stat,
+        None => {
+            eprintln!(
+                "The path `{}` doesn't exists and, therefore, cannot be deleted.",
+                path
+            );
+            return Ok(());
+        }
+    };
 
     if stat.num_children == 0 {
-        zk.delete(&path, None).into_diagnostic()?;
+        zk.delete(path, None).into_diagnostic()?;
         return Ok(());
     }
 
-    let children = zk.get_children(&path, false).into_diagnostic()?;
+    let children = zk.get_children(path, false).into_diagnostic()?;
     for child in children {
         let path = if path == "/" { "" } else { path };
         recursive_delete(zk, &format!("{}/{}", path, child))?;
     }
 
-    zk.delete(&path, None).into_diagnostic()?;
+    zk.delete(path, None).into_diagnostic()?;
 
     Ok(())
 }
